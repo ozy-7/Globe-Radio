@@ -3,4 +3,4 @@ services:
     name: globe-radio-api
     env: python
     buildCommand: ""
-    startCommand: python search_api.py
+    startCommand: python application.py

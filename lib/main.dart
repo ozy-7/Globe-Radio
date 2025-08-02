@@ -1,9 +1,11 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 
 void main() {
+  await dotenv.load();
   runApp(const GlobeRadioApp());
 }
 
@@ -32,19 +34,14 @@ class SearchRadioScreen extends StatefulWidget {
 class _SearchRadioScreenState extends State<SearchRadioScreen> {
   final TextEditingController _controller = TextEditingController();
   final AudioPlayer _player = AudioPlayer();
-  List results = [];
+  List<Map<String, dynamic>> results = [];
   bool isLoading = false;
 
   String? _currentlyPlayingUrl;
-  String? _currentlyPlayingName;
-  String? _currentlyPlayingCountry;
   String? currentTitle;
   bool isPlaying = false;
 
-
-  final String bonsaiUsername = 'e0zk42nhkp';
-  final String bonsaiPassword = 'h09w8k79sy';
-  final String bonsaiDomain = 'globe-radio-search-1981816204.eu-central-1.bonsaisearch.net';
+  final String apiUrl = '${dotenv.env['API_URL']}/search?q=';
 
   @override
   void initState() {
@@ -68,45 +65,31 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
 
     setState(() => isLoading = true);
 
-    final credentials = base64Encode(utf8.encode('$bonsaiUsername:$bonsaiPassword'));
-
-    final url = Uri.https(
-      bonsaiDomain,
-      '/radio_stations/_search',
-      {'q': 'name:$query'},
-    );
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Basic $credentials',
-        'Content-Type': 'application/json',
-      },
-    );
+    final url = Uri.parse('$apiUrl${Uri.encodeComponent(query)}');
+    final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final hits = data['hits']['hits'];
+      final List<dynamic> data = json.decode(response.body);
       setState(() {
-        results = hits.map((e) => e['_source']).toList();
+        results = List<Map<String, dynamic>>.from(data);
         isLoading = false;
       });
     } else {
-      print("Arama hatası: ${response.statusCode} ${response.body}");
       setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Arama hatası: ${response.statusCode}")),
+      );
     }
   }
 
-
-  void playStream(Map station) async {
+  void playStream(Map<String, dynamic> station) async {
     try {
-      if (_currentlyPlayingUrl != station['url']) {
-        await _player.setUrl(station['url']);
+      final url = station['url_resolved'] ?? station['url'];
+      if (_currentlyPlayingUrl != url) {
+        await _player.setUrl(url);
         _player.play();
         setState(() {
-          _currentlyPlayingUrl = station['url'];
-          _currentlyPlayingName = station['name'];
-          _currentlyPlayingCountry = station['country'];
+          _currentlyPlayingUrl = url;
         });
       } else {
         if (_player.playing) {
@@ -116,7 +99,9 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
         }
       }
     } catch (e) {
-      print("Stream hatası: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Stream hatası: $e")),
+      );
     }
   }
 
@@ -149,12 +134,15 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
             const SizedBox(height: 10),
             isLoading
                 ? const CircularProgressIndicator()
+                : results.isEmpty
+                ? const Text("Sonuç bulunamadı.")
                 : Expanded(
               child: ListView.builder(
                 itemCount: results.length,
                 itemBuilder: (context, index) {
                   final station = results[index];
-                  final isCurrent = _currentlyPlayingUrl == station['url'];
+                  final isCurrent = _currentlyPlayingUrl ==
+                      (station['url_resolved'] ?? station['url']);
                   return ListTile(
                     title: Text(
                       "${station['name'] ?? 'Unknown'} - ${station['country'] ?? ''}",
@@ -162,7 +150,8 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
                     subtitle: isCurrent && currentTitle != null
                         ? Text(
                       currentTitle!,
-                      style: const TextStyle(fontStyle: FontStyle.italic),
+                      style: const TextStyle(
+                          fontStyle: FontStyle.italic),
                     )
                         : null,
                     trailing: IconButton(
