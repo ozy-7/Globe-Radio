@@ -8,7 +8,7 @@
     <application
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:label="globe_radio"
+        android:label="Globe Radio"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
