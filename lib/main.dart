@@ -1,11 +1,9 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 
 void main() {
-  await dotenv.load();
   runApp(const GlobeRadioApp());
 }
 
@@ -41,7 +39,7 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
   String? currentTitle;
   bool isPlaying = false;
 
-  final String apiUrl = '${dotenv.env['API_URL']}/search?q=';
+  final String apiUrl = 'https://globe-radio-backend.onrender.com/search?q=';
 
   @override
   void initState() {
