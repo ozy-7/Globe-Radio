@@ -3,10 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-
 import '../services/audio_service.dart';
-
-
 
 class SearchRadioScreen extends StatefulWidget {
   const SearchRadioScreen({super.key});
@@ -17,7 +14,6 @@ class SearchRadioScreen extends StatefulWidget {
 
 class _SearchRadioScreenState extends State<SearchRadioScreen> {
   final TextEditingController _controller = TextEditingController();
-  //final AudioPlayer _player = AudioPlayer();
   List<Map<String, dynamic>> results = [];
   bool isLoading = false;
 
@@ -67,44 +63,43 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
   }
 
   void playStream(Map<String, dynamic> station) async {
-    try {
-      final url = station['url_resolved'] ?? station['url'];
-      final stationName = station['name'] ?? 'Unknown Station';
-      final country = station['country'] ?? '';
-      final iconUrl = station['favicon'];
-      final artUri = (iconUrl != null && iconUrl.toString().trim().isNotEmpty)
-          ? Uri.parse(iconUrl)
-          : Uri.parse('https://via.placeholder.com/300x300.png?text=Globe+Radio');
+    final url = station['url_resolved'] ?? station['url'];
+    final stationName = station['name'] ?? 'Unknown Station';
+    final country = station['country'] ?? '';
+    final iconUrl = station['favicon'];
+    final artUri = (iconUrl != null && iconUrl.toString().trim().isNotEmpty)
+        ? Uri.parse(iconUrl)
+        : Uri.parse('https://via.placeholder.com/300x300.png?text=Globe+Radio');
 
-      if (_currentlyPlayingUrl != url) {
-        await AudioService.player.stop();
-        await AudioService.player.setAudioSource(
-          AudioSource.uri(
-            Uri.parse(url),
-            tag: MediaItem(
-              id: url,
-              title: stationName,
-              artist: currentTitle ?? country,
-              artUri: artUri,
-            ),
+    final currentTag = AudioService.player.audioSource?.sequence.first.tag;
+    final isCurrent = currentTag != null && currentTag.id == url;
+
+    if (!isCurrent) {
+      await AudioService.player.stop();
+      await AudioService.player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(url),
+          tag: MediaItem(
+            id: url,
+            title: stationName,
+            artist: country,
+            artUri: artUri,
           ),
-        );
-        await AudioService.player.play();
-
-        setState(() {
-          _currentlyPlayingUrl = url;
-        });
-      } else {
-        if (AudioService.player.playing) {
-          AudioService.player.pause();
-        } else {
-          AudioService.player.play();
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Stream error: $e")),
+        ),
       );
+      await AudioService.player.play();
+
+      setState(() {
+        _currentlyPlayingUrl = url;
+        currentTitle = null;
+      });
+    } else {
+      if (AudioService.player.playing) {
+        await AudioService.player.pause();
+      } else {
+        await AudioService.player.play();
+      }
+      setState(() {});
     }
   }
 
@@ -143,28 +138,38 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
                 itemCount: results.length,
                 itemBuilder: (context, index) {
                   final station = results[index];
-                  final isCurrent = _currentlyPlayingUrl ==
-                      (station['url_resolved'] ?? station['url']);
-                  return ListTile(
-                    title: Text(
-                      "${station['name'] ?? 'Unknown'} - ${station['country'] ?? ''}",
-                    ),
-                    subtitle: isCurrent && currentTitle != null
-                        ? Text(
-                      currentTitle!,
-                      style: const TextStyle(
-                          fontStyle: FontStyle.italic),
-                    )
-                        : null,
-                    trailing: IconButton(
-                      icon: Icon(
-                        isCurrent && isPlaying
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                      ),
-                      onPressed: () => playStream(station),
-                    ),
-                    onTap: () => playStream(station),
+                  final stationUrl = station['url_resolved'] ?? station['url'];
+
+                  return StreamBuilder<PlayerState>(
+                    stream: AudioService.player.playerStateStream,
+                    builder: (context, snapshot) {
+                      final state = snapshot.data;
+                      final isPlaying = state?.playing ?? false;
+
+                      final isCurrent = AudioService.player.audioSource?.sequence != null &&
+                          AudioService.player.audioSource!.sequence.first.tag.id == stationUrl;
+
+                      return ListTile(
+                        title: Text("${station['name'] ?? 'Unknown'} - ${station['country'] ?? ''}"),
+                        subtitle: isCurrent
+                            ? StreamBuilder<IcyMetadata?>(
+                          stream: AudioService.player.icyMetadataStream,
+                          builder: (context, snapshot) {
+                            final title = snapshot.data?.info?.title;
+                            if (title != null && title.isNotEmpty) {
+                              return Text(title, style: const TextStyle(fontStyle: FontStyle.italic));
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        )
+                            : null,
+                        trailing: IconButton(
+                          icon: Icon(isCurrent && isPlaying ? Icons.pause : Icons.play_arrow),
+                          onPressed: () => playStream(station),
+                        ),
+                        onTap: () => playStream(station),
+                      );
+                    },
                   );
                 },
               ),
