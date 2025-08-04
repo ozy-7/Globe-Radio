@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+import '../services/audio_service.dart';
+
 
 
 class SearchRadioScreen extends StatefulWidget {
@@ -15,7 +17,7 @@ class SearchRadioScreen extends StatefulWidget {
 
 class _SearchRadioScreenState extends State<SearchRadioScreen> {
   final TextEditingController _controller = TextEditingController();
-  final AudioPlayer _player = AudioPlayer();
+  //final AudioPlayer _player = AudioPlayer();
   List<Map<String, dynamic>> results = [];
   bool isLoading = false;
 
@@ -29,13 +31,13 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
   void initState() {
     super.initState();
 
-    _player.icyMetadataStream.listen((metadata) {
+    AudioService.player.icyMetadataStream.listen((metadata) {
       setState(() {
         currentTitle = metadata?.info?.title;
       });
     });
 
-    _player.playerStateStream.listen((state) {
+    AudioService.player.playerStateStream.listen((state) {
       setState(() {
         isPlaying = state.playing;
       });
@@ -75,8 +77,8 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
           : Uri.parse('https://via.placeholder.com/300x300.png?text=Globe+Radio');
 
       if (_currentlyPlayingUrl != url) {
-        await _player.stop();
-        await _player.setAudioSource(
+        await AudioService.player.stop();
+        await AudioService.player.setAudioSource(
           AudioSource.uri(
             Uri.parse(url),
             tag: MediaItem(
@@ -87,16 +89,16 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
             ),
           ),
         );
-        await _player.play();
+        await AudioService.player.play();
 
         setState(() {
           _currentlyPlayingUrl = url;
         });
       } else {
-        if (_player.playing) {
-          _player.pause();
+        if (AudioService.player.playing) {
+          AudioService.player.pause();
         } else {
-          _player.play();
+          AudioService.player.play();
         }
       }
     } catch (e) {
@@ -109,7 +111,6 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
   @override
   void dispose() {
     _controller.dispose();
-    _player.dispose();
     super.dispose();
   }
 
