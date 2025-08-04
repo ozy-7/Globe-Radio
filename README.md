@@ -2,6 +2,10 @@
 
 A complete radio app.
 
+## 📦 Download
+
+👉 [Download latest APK](https://github.com/ozy-7/Globe-Radio/releases/download/v1.0.1/globe-radio.apk)
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
