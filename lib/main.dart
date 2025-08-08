@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:globe_radio/services/audio_service.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'screens/home_screen.dart';
 
@@ -8,6 +9,8 @@ Future<void> main() async {
     androidNotificationChannelName: 'Audio playback',
     androidNotificationOngoing: true,
   );
+
+  AudioService.init();
   runApp(const GlobeRadioApp());
 }
 
