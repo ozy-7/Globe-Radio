@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
@@ -6,7 +7,21 @@ class AudioService {
 
   static AudioPlayer get player => _player;
 
-  /// Radyo yayını çal
+
+  static Stream<IcyMetadata?> get metadataStream => _player.icyMetadataStream;
+
+
+  static Stream<PlayerState> get playerStateStream => _player.playerStateStream;
+
+
+  static String? get currentStationUrl {
+    if (_player.audioSource?.sequence.isNotEmpty == true) {
+      return _player.audioSource!.sequence.first.tag.id;
+    }
+    return null;
+  }
+
+
   static Future<void> playStream({
     required String url,
     required String stationName,
@@ -18,11 +33,7 @@ class AudioService {
           ? Uri.parse(iconUrl)
           : Uri.parse('https://via.placeholder.com/300x300.png?text=Globe+Radio');
 
-      final currentTag = _player.audioSource?.sequence.isNotEmpty == true
-          ? _player.audioSource!.sequence.first.tag
-          : null;
-
-      final isCurrent = currentTag != null && currentTag.id == url;
+      final isCurrent = currentStationUrl == url;
 
       if (!isCurrent) {
         await _player.stop();
@@ -46,34 +57,39 @@ class AudioService {
         }
       }
     } catch (e) {
-      print("Error playing stream: $e");
+      if (kDebugMode) {
+        print("Error playing stream: $e");
+      }
     }
   }
 
-  /// Duraklat
   static Future<void> pause() async {
     try {
       await _player.pause();
     } catch (e) {
-      print("Error pausing: $e");
+      if (kDebugMode) {
+        print("Error pausing: $e");
+      }
     }
   }
 
-  /// Devam ettir
   static Future<void> resume() async {
     try {
       await _player.play();
     } catch (e) {
-      print("Error resuming: $e");
+      if (kDebugMode) {
+        print("Error resuming: $e");
+      }
     }
   }
 
-  /// Durdur
   static Future<void> stop() async {
     try {
       await _player.stop();
     } catch (e) {
-      print("Error stopping: $e");
+      if (kDebugMode) {
+        print("Error stopping: $e");
+      }
     }
   }
 }

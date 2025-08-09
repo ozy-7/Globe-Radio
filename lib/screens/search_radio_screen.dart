@@ -16,7 +16,6 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
   List<Map<String, dynamic>> results = [];
   bool isLoading = false;
 
-
   String? currentTitle;
   bool isPlaying = false;
 
@@ -61,8 +60,6 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
     }
   }
 
-
-
   @override
   void dispose() {
     _controller.dispose();
@@ -89,44 +86,57 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            isLoading
-                ? const CircularProgressIndicator()
-                : results.isEmpty
-                ? const Text("No results.")
-                : Expanded(
-              child: ListView.builder(
-                itemCount: results.length,
-                itemBuilder: (context, index) {
-                  final station = results[index];
-                  final stationUrl = station['url_resolved'] ?? station['url'];
+            if (isLoading)
+              const CircularProgressIndicator()
+            else if (results.isEmpty)
+              const Text("No results.")
+            else
+              Expanded(
+                child: StreamBuilder<PlayerState>(
+                  stream: AudioService.playerStateStream,
+                  builder: (context, playerSnapshot) {
+                    final playerState = playerSnapshot.data;
+                    final isPlaying = playerState?.playing ?? false;
+                    final currentUrl = AudioService.currentStationUrl;
 
-                  return StreamBuilder<PlayerState>(
-                    stream: AudioService.player.playerStateStream,
-                    builder: (context, snapshot) {
-                      final state = snapshot.data;
-                      final isPlaying = state?.playing ?? false;
+                    return ListView.builder(
+                      itemCount: results.length,
+                      itemBuilder: (context, index) {
+                        final station = results[index];
+                        final stationUrl = station['url_resolved'] ?? station['url'];
+                        final isCurrent = currentUrl == stationUrl;
 
-                      final isCurrent = AudioService.player.audioSource?.sequence != null &&
-                          AudioService.player.audioSource!.sequence.first.tag.id == stationUrl;
-
-                      return ListTile(
-                        title: Text("${station['name'] ?? 'Unknown'} - ${station['country'] ?? ''}"),
-                        subtitle: isCurrent
-                            ? StreamBuilder<IcyMetadata?>(
-                          stream: AudioService.player.icyMetadataStream,
-                          builder: (context, snapshot) {
-                            final title = snapshot.data?.info?.title;
-                            if (title != null && title.isNotEmpty) {
-                              return Text(title, style: const TextStyle(fontStyle: FontStyle.italic));
-                            }
-                            return const SizedBox.shrink();
-                          },
-                        )
-                            : null,
-                        trailing: IconButton(
-                          icon: Icon(isCurrent && isPlaying ? Icons.pause : Icons.play_arrow),
-                          onPressed: () {
-                            final stationUrl = station['url_resolved'] ?? station['url'];
+                        return ListTile(
+                          title: Text("${station['name'] ?? 'Unknown'} - ${station['country'] ?? ''}"),
+                          subtitle: isCurrent
+                              ? StreamBuilder<IcyMetadata?>(
+                            stream: AudioService.metadataStream,
+                            builder: (context, metaSnapshot) {
+                              final title = metaSnapshot.data?.info?.title;
+                              if (title != null && title.isNotEmpty) {
+                                return Text(
+                                  title,
+                                  style: const TextStyle(fontStyle: FontStyle.italic),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          )
+                              : null,
+                          trailing: IconButton(
+                            icon: Icon(isCurrent && isPlaying ? Icons.pause : Icons.play_arrow),
+                            onPressed: () {
+                              if (stationUrl != null && stationUrl.toString().isNotEmpty) {
+                                AudioService.playStream(
+                                  url: stationUrl,
+                                  stationName: station['name'] ?? 'Unknown Station',
+                                  country: station['country'] ?? '',
+                                  iconUrl: station['favicon'],
+                                );
+                              }
+                            },
+                          ),
+                          onTap: () {
                             if (stationUrl != null && stationUrl.toString().isNotEmpty) {
                               AudioService.playStream(
                                 url: stationUrl,
@@ -136,24 +146,12 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
                               );
                             }
                           },
-                        ),
-                        onTap: () {
-                          final stationUrl = station['url_resolved'] ?? station['url'];
-                          if (stationUrl != null && stationUrl.toString().isNotEmpty) {
-                            AudioService.playStream(
-                              url: stationUrl,
-                              stationName: station['name'] ?? 'Unknown Station',
-                              country: station['country'] ?? '',
-                              iconUrl: station['favicon'],
-                            );
-                          }
-                        },
-                      );
-                    },
-                  );
-                },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
           ],
         ),
       ),
