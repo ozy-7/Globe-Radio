@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import '../services/audio_service.dart';
 
 class SearchRadioScreen extends StatefulWidget {
@@ -17,7 +16,7 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
   List<Map<String, dynamic>> results = [];
   bool isLoading = false;
 
-  String? _currentlyPlayingUrl;
+
   String? currentTitle;
   bool isPlaying = false;
 
@@ -62,46 +61,7 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
     }
   }
 
-  void playStream(Map<String, dynamic> station) async {
-    final url = station['url_resolved'] ?? station['url'];
-    final stationName = station['name'] ?? 'Unknown Station';
-    final country = station['country'] ?? '';
-    final iconUrl = station['favicon'];
-    final artUri = (iconUrl != null && iconUrl.toString().trim().isNotEmpty)
-        ? Uri.parse(iconUrl)
-        : Uri.parse('https://via.placeholder.com/300x300.png?text=Globe+Radio');
 
-    final currentTag = AudioService.player.audioSource?.sequence.first.tag;
-    final isCurrent = currentTag != null && currentTag.id == url;
-
-    if (!isCurrent) {
-      await AudioService.player.stop();
-      await AudioService.player.setAudioSource(
-        AudioSource.uri(
-          Uri.parse(url),
-          tag: MediaItem(
-            id: url,
-            title: stationName,
-            artist: country,
-            artUri: artUri,
-          ),
-        ),
-      );
-      await AudioService.player.play();
-
-      setState(() {
-        _currentlyPlayingUrl = url;
-        currentTitle = null;
-      });
-    } else {
-      if (AudioService.player.playing) {
-        await AudioService.player.pause();
-      } else {
-        await AudioService.player.play();
-      }
-      setState(() {});
-    }
-  }
 
   @override
   void dispose() {
@@ -165,9 +125,29 @@ class _SearchRadioScreenState extends State<SearchRadioScreen> {
                             : null,
                         trailing: IconButton(
                           icon: Icon(isCurrent && isPlaying ? Icons.pause : Icons.play_arrow),
-                          onPressed: () => playStream(station),
+                          onPressed: () {
+                            final stationUrl = station['url_resolved'] ?? station['url'];
+                            if (stationUrl != null && stationUrl.toString().isNotEmpty) {
+                              AudioService.playStream(
+                                url: stationUrl,
+                                stationName: station['name'] ?? 'Unknown Station',
+                                country: station['country'] ?? '',
+                                iconUrl: station['favicon'],
+                              );
+                            }
+                          },
                         ),
-                        onTap: () => playStream(station),
+                        onTap: () {
+                          final stationUrl = station['url_resolved'] ?? station['url'];
+                          if (stationUrl != null && stationUrl.toString().isNotEmpty) {
+                            AudioService.playStream(
+                              url: stationUrl,
+                              stationName: station['name'] ?? 'Unknown Station',
+                              country: station['country'] ?? '',
+                              iconUrl: station['favicon'],
+                            );
+                          }
+                        },
                       );
                     },
                   );

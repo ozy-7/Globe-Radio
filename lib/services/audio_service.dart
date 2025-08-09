@@ -1,80 +1,79 @@
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:flutter/foundation.dart';
 
-class AudioService extends ChangeNotifier {
-  static final AudioPlayer player = AudioPlayer();
+class AudioService {
+  static final AudioPlayer _player = AudioPlayer();
 
-  static String? currentlyPlayingUrl;
-  static String? currentlyPlayingStationName;
-  static String? currentlyPlayingCountry;
-  static Uri? currentlyPlayingArtUri;
-  static String? currentSongTitle;
-  static bool isPlaying = false;
+  static AudioPlayer get player => _player;
 
-  static void init() {
-    player.icyMetadataStream.listen((metadata) {
-      currentSongTitle = metadata?.info?.title;
-      _notify();
-    });
-
-
-    player.playerStateStream.listen((state) {
-      isPlaying = state.playing;
-      _notify();
-    });
-  }
-
-  static Future<void> playStation({
+  /// Radyo yayını çal
+  static Future<void> playStream({
     required String url,
     required String stationName,
-    String? country,
+    String country = '',
     String? iconUrl,
   }) async {
-    final artUri = (iconUrl != null && iconUrl.trim().isNotEmpty)
-        ? Uri.parse(iconUrl)
-        : Uri.parse('https://via.placeholder.com/300x300.png?text=Globe+Radio');
+    try {
+      final artUri = (iconUrl != null && iconUrl.trim().isNotEmpty)
+          ? Uri.parse(iconUrl)
+          : Uri.parse('https://via.placeholder.com/300x300.png?text=Globe+Radio');
 
-    final currentTag = player.audioSource?.sequence.first.tag;
-    final isCurrent = currentTag != null && currentTag.id == url;
+      final currentTag = _player.audioSource?.sequence.isNotEmpty == true
+          ? _player.audioSource!.sequence.first.tag
+          : null;
 
-    if (!isCurrent) {
-      await player.stop();
-      await player.setAudioSource(
-        AudioSource.uri(
-          Uri.parse(url),
-          tag: MediaItem(
-            id: url,
-            title: stationName,
-            artist: country ?? '',
-            artUri: artUri,
+      final isCurrent = currentTag != null && currentTag.id == url;
+
+      if (!isCurrent) {
+        await _player.stop();
+        await _player.setAudioSource(
+          AudioSource.uri(
+            Uri.parse(url),
+            tag: MediaItem(
+              id: url,
+              title: stationName,
+              artist: country,
+              artUri: artUri,
+            ),
           ),
-        ),
-      );
-      await player.play();
-
-      currentlyPlayingUrl = url;
-      currentlyPlayingStationName = stationName;
-      currentlyPlayingCountry = country;
-      currentlyPlayingArtUri = artUri;
-      currentSongTitle = null;
-      _notify();
-    } else {
-      if (player.playing) {
-        await player.pause();
+        );
+        await _player.play();
       } else {
-        await player.play();
+        if (_player.playing) {
+          await _player.pause();
+        } else {
+          await _player.play();
+        }
       }
+    } catch (e) {
+      print("Error playing stream: $e");
     }
   }
 
-  static void _notify() {
-
-    _instance.notifyListeners();
+  /// Duraklat
+  static Future<void> pause() async {
+    try {
+      await _player.pause();
+    } catch (e) {
+      print("Error pausing: $e");
+    }
   }
 
-  // Singleton
-  static final AudioService _instance = AudioService._internal();
-  AudioService._internal();
-  factory AudioService() => _instance;
+  /// Devam ettir
+  static Future<void> resume() async {
+    try {
+      await _player.play();
+    } catch (e) {
+      print("Error resuming: $e");
+    }
+  }
+
+  /// Durdur
+  static Future<void> stop() async {
+    try {
+      await _player.stop();
+    } catch (e) {
+      print("Error stopping: $e");
+    }
+  }
 }
